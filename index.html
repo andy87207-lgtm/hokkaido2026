@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hokkaido Trip 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #F8FBFF; -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .safe-area-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 80px); }
+        .nav-glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); }
+        .active-tab { color: #3b82f6; transform: translateY(-2px); transition: all 0.3s; }
+        .card-shadow { box-shadow: 0 4px 20px rgba(185, 217, 235, 0.2); }
+    </style>
+</head>
+<body class="max-w-md mx-auto min-h-screen relative">
+
+<div id="app">
+    <header class="pt-10 pb-6 px-6 bg-white">
+        <h1 class="text-2xl font-bold text-gray-800 tracking-tight">北海道家族旅行</h1>
+        <p class="text-sm text-blue-400 font-medium mt-1">2026.06.04 — 06.08</p>
+    </header>
+
+    <main class="safe-area-bottom px-4">
+        
+        <section v-if="currentTab === 'itinerary'">
+            <div class="flex overflow-x-auto space-x-3 py-4 hide-scrollbar">
+                <div v-for="date in travelDates" :key="date.day" 
+                     @click="selectedDate = date.day"
+                     :class="['flex flex-col items-center min-w-[60px] py-3 rounded-2xl border transition-all', 
+                              selectedDate === date.day ? 'bg-blue-500 text-white border-blue-500 shadow-lg' : 'bg-white text-gray-400 border-gray-100']">
+                    <span class="text-[10px] font-bold uppercase">{{ date.weekday }}</span>
+                    <span class="text-xl font-bold">{{ date.day }}</span>
+                </div>
+            </div>
+
+            <div class="mt-2 mb-6 bg-gradient-to-r from-blue-50 to-white p-4 rounded-2xl flex items-center justify-between border border-blue-100/50 card-shadow">
+                <div class="flex items-center space-x-4">
+                    <i data-lucide="cloud-snow" class="text-blue-400 w-8 h-8"></i>
+                    <div>
+                        <p class="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Sapporo Weather</p>
+                        <p class="text-lg font-bold text-gray-700">18°C <span class="text-xs font-normal text-gray-400 ml-1">體感 16°C</span></p>
+                    </div>
+                </div>
+                <div class="text-right text-[10px] text-gray-400 leading-tight">
+                    下雪機率 5%<br>降雨機 line 10%
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div v-for="(item, index) in filteredItinerary" :key="index" class="relative">
+                    <div v-if="index > 0" class="flex items-center ml-10 my-2 space-x-3 opacity-50">
+                        <div class="w-0.5 h-8 bg-dashed border-l-2 border-blue-200"></div>
+                        <div class="flex items-center space-x-1 text-[10px] bg-blue-50 text-blue-500 px-3 py-1 rounded-full font-bold">
+                            <i data-lucide="car" class="w-3 h-3"></i>
+                            <span>{{ item.travelTime }}</span>
+                        </div>
+                    </div>
+
+                    <div @click="goNav(item.location)" 
+                         class="bg-white p-5 rounded-2xl border border-gray-50 card-shadow active:scale-[0.97] transition-transform">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <span :class="['text-[10px] px-2 py-0.5 rounded-md font-bold', getCatClass(item.category)]">
+                                        {{ item.category }}
+                                    </span>
+                                    <span class="text-[10px] font-mono text-gray-400">{{ item.time }}</span>
+                                </div>
+                                <h3 class="text-gray-800 font-bold text-base leading-snug">{{ item.name }}</h3>
+                                <p v-if="item.note" class="mt-2 text-xs text-gray-500 bg-gray-50 p-2 rounded-lg leading-relaxed">
+                                    {{ item.note }}
+                                </p>
+                            </div>
+                            <i data-lucide="map-pin" class="text-blue-200 w-5 h-5 mt-1"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section v-if="currentTab === 'info'" class="pt-4 space-y-5">
+            <div class="bg-blue-600 p-6 rounded-3xl text-white shadow-xl">
+                <p class="text-xs font-bold opacity-70 mb-4">匯率換算 (1 JPY = 0.21 TWD)</p>
+                <div class="flex items-center space-x-4">
+                    <input type="number" v-model="jpyInput" class="w-full bg-white/10 border-none rounded-xl p-3 text-white text-2xl font-bold focus:ring-0">
+                    <i data-lucide="arrow-right" class="shrink-0"></i>
+                    <div class="w-full bg-white text-blue-600 rounded-xl p-3 text-2xl font-bold">
+                        ${{ (jpyInput * 0.21).toLocaleString(undefined, {maximumFractionDigits: 0}) }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <h4 class="text-sm font-bold text-gray-400 px-2 uppercase tracking-widest">重要聯絡</h4>
+                <div class="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between" @click="goNav('Vessel Inn Sapporo Nakajima Park')">
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-blue-50 p-3 rounded-xl"><i data-lucide="hotel" class="text-blue-500 w-5 h-5"></i></div>
+                        <div><p class="font-bold text-gray-800 text-sm">Vessel Inn 中島公園</p><p class="text-xs text-gray-400">011-513-0700</p></div>
+                    </div>
+                    <i data-lucide="chevron-right" class="text-gray-300"></i>
+                </div>
+            </div>
+        </section>
+
+        <section v-if="currentTab === 'shopping' || currentTab === 'expenses'" class="py-20 text-center">
+            <i data-lucide="construction" class="w-12 h-12 text-blue-100 mx-auto mb-4"></i>
+            <p class="text-gray-400">功能開發中，敬請期待</p>
+        </section>
+    </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto nav-glass border-t border-gray-100 flex justify-around items-center py-3 px-2 z-[100] shadow-2xl">
+        <button v-for="tab in tabs" :key="tab.id" @click="currentTab = tab.id"
+                :class="['flex flex-col items-center flex-1 py-1 transition-all', currentTab === tab.id ? 'active-tab' : 'text-gray-300']">
+            <i :data-lucide="tab.icon" class="w-6 h-6"></i>
+            <span class="text-[10px] mt-1 font-bold">{{ tab.label }}</span>
+        </button>
+    </nav>
+
+    <button class="fixed bottom-24 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform z-[90]">
+        <i data-lucide="plus" class="w-8 h-8"></i>
+    </button>
+</div>
+
+<script>
+    const { createApp, ref, computed, onMounted, updated } = Vue;
+
+    createApp({
+        setup() {
+            const currentTab = ref('itinerary');
+            const selectedDate = ref(4);
+            const jpyInput = ref(1000);
+
+            const tabs = [
+                { id: 'itinerary', icon: 'map-pin', label: '行程' },
+                { id: 'info', icon: 'info', label: '資訊' },
+                { id: 'shopping', icon: 'shopping-basket', label: '購物' },
+                { id: 'expenses', icon: 'wallet', label: '花費' }
+            ];
+
+            const travelDates = [
+                { weekday: 'Thu', day: 4 },
+                { weekday: 'Fri', day: 5 },
+                { weekday: 'Sat', day: 6 },
+                { weekday: 'Sun', day: 7 },
+                { weekday: 'Mon', day: 8 },
+            ];
+
+            const itineraryItems = ref([
+                // Day 1
+                { day: 4, category: '航班', name: 'BR116 長榮航空 抵達', time: '15:00', location: 'New Chitose Airport', travelTime: '0', note: '抵達新千歲機場' },
+                { day: 4, category: '其他', name: '機場巴士直達中島公園', time: '15:40', location: 'Nakajima Park', travelTime: '40m', note: '車資約 ¥1,100' },
+                { day: 4, category: '住宿', name: 'Vessel Inn Sapporo Check-in', time: '17:00', location: 'Vessel Inn Sapporo Nakajima Park', travelTime: '70m', note: '飯店放行李稍作休息' },
+                { day: 4, category: '購物', name: '狸小路商店街散策', time: '18:30', location: 'Tanukikoji Shopping Street', travelTime: '15m', note: '晚餐吃味噌拉麵' },
+                
+                // Day 2
+                { day: 5, category: '美食', name: '飯店海鮮丼吃到飽', time: '08:30', location: 'Vessel Inn Sapporo', travelTime: '0', note: '北海道必吃早餐排名' },
+                { day: 5, category: '景點', name: '北海道神宮 & 圓山公園', time: '11:00', location: 'Hokkaido Jingu', travelTime: '20m', note: '六花亭神宮茶屋限定判官餅' },
+                { day: 5, category: '景點', name: '藻岩山夜景', time: '19:30', location: 'Mt. Moiwa Ropeway', travelTime: '30m', note: '日本新三大夜景' },
+                
+                // Day 3
+                { day: 6, category: '住宿', name: '換飯店 (札幌車站附近)', time: '10:00', location: 'Sapporo Station', travelTime: '15m', note: '先寄放行李' },
+                { day: 6, category: '景點', name: '小樽運河 & 堺町通', time: '14:00', location: 'Otaru Canal', travelTime: '45m', note: '吃 LeTAO 甜點與逛玻璃工藝' },
+                { day: 6, category: '景點', name: '小樽運河夜景', time: '19:30', location: 'Otaru Canal Night View', travelTime: '10m', note: '浪漫氛圍拍照必去' },
+
+                // Day 4
+                { day: 7, category: '購物', name: '狸小路 & 大丸百貨採購', time: '10:00', location: 'Daimaru Sapporo', travelTime: '10m', note: '藥妝、伴手禮補貨' },
+                { day: 7, category: '美食', name: '成吉思汗烤肉晚餐', time: '18:30', location: 'Jingisukan Daruma', travelTime: '15m', note: '最後一夜大餐' },
+
+                // Day 5
+                { day: 8, category: '其他', name: '新千歲機場 採購+午餐', time: '11:30', location: 'New Chitose Airport', travelTime: '40m', note: '機場拉麵道場' },
+                { day: 8, category: '航班', name: 'BR115 起飛返台', time: '16:15', location: 'New Chitose Airport', travelTime: '0', note: '期待下次旅行' }
+            ]);
+
+            const filteredItinerary = computed(() => {
+                return itineraryItems.value.filter(i => i.day === selectedDate.value);
+            });
+
+            const getCatClass = (cat) => {
+                const colors = {
+                    '航班': 'bg-purple-100 text-purple-600',
+                    '景點': 'bg-blue-100 text-blue-600',
+                    '美食': 'bg-orange-100 text-orange-600',
+                    '住宿': 'bg-green-100 text-green-600',
+                    '購物': 'bg-pink-100 text-pink-600'
+                };
+                return colors[cat] || 'bg-gray-100 text-gray-600';
+            };
+
+            const goNav = (loc) => {
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(loc)}`, '_blank');
+            };
+
+            const initIcons = () => { if (window.lucide) window.lucide.createIcons(); };
+            onMounted(initIcons);
+            updated(initIcons);
+
+            return { currentTab, tabs, travelDates, selectedDate, filteredItinerary, getCatClass, goNav, jpyInput };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
